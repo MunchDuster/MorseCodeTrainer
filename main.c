@@ -3,19 +3,65 @@
 #include <unistd.h>		// fork()
 #include <sys/wait.h>	// waitpid()
 #include <math.h>		// sin()
+#include <stdint.h>		// uint8_t, uint16_t, etc
 
+// audio consts
 #define SAMPLE_RATE 48000		// matches system default
 #define FREQUENCY 440.0			// Concert A4
-#define DIT_DURATION_SECS 0.2	// TODO: make settable as parameter for better practice of fast speeds
 #define AMPLITUDE 32767.0		// Max 16-bit signed integer
 #define PI 3.141592653589793	// 15 dp is approximate max accuracy of double
 
 // morse code timings following international standard
-#define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3)
+#define WORDS_PER_SECOND 10.0		// TODO: make settable as parameter for better practice of fast speeds
+#define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
+#define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
 // TODO: word letter interval, word interval
 
-int playSound(double duration_seconds) {
+// input index is the character and output string of dits and dahs
+// not the most memory efficient but easy to encode correctly and fairly simple to decode
+char* letters_morse[256] = {
+	['a'] = ".-",
+	['b'] = "-...",
+	['c'] = "-.-.",
+	['d'] = "-..",
+	['e'] = ".",
+	['f'] = "..-.",
+	['g'] = "--.",
+	['h'] = "....",
+	['i'] = "..",
+	['j'] = ".---",
+	['k'] = "-.-",
+	['l'] = ".-..",
+	['m'] = "--",
+	['n'] = "-.",
+	['o'] = "---",
+	['p'] = ".--.",
+	['q'] = "--.-",
+	['r'] = ".-.",
+	['s'] = "...",
+	['t'] = "-",
+	['u'] = "..-",
+	['v'] = "...-",
+	['w'] = ".--",
+	['x'] = "-..-",
+	['y'] = "-.--",
+	['z'] = "--..",
+	['0'] = "-----",
+	['1'] = ".----",
+	['2'] = "..---",
+	['3'] = "...--",
+	['4'] = "....-",
+	['5'] = ".....",
+	['6'] = "-....",
+	['7'] = "--...",
+	['8'] = "---..",
+	['9'] = "----.",
+};
+// 'input stream' to audio handler
+FILE *subprocess_stdin = NULL;
+
+int startAudioSubprocess(void) {
 	// aplay is the audio software
 	// '-q' is quiet, no regular logging
 	// '-r 48000' is audio rate of 48000Hz (AKA 48000 samples/second)
@@ -25,33 +71,16 @@ int playSound(double duration_seconds) {
 
 	// create the subprocess and open a write ("w") stream to its stdin
 	// this executes the command in a child process, keeping its input stream open as a file
-	FILE *subprocess_stdin = popen(subprocess, "w");
+	subprocess_stdin = popen(subprocess, "w");
 	
 	// check if the subprocess failed to start
 	if (subprocess_stdin == NULL) {
 		perror("Failed to run subprocess");
 		return EXIT_FAILURE;
 	}
-
-	long num_samples = SAMPLE_RATE * duration_seconds;
-	double two_pi = 2.0 * PI;
-	double t = 0;
-	for (long i = 0; i < num_samples; i++) {
-		// calculate the sine wave value between -1.0 and 1.0
-		t += 1.0 / SAMPLE_RATE;
-		double sample_value = sin(two_pi * FREQUENCY * t);
-
-		// scale to 16-bit signed integer PCM (-32768 to 32767)
-		int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
-
-		// write the 16-bit sample (2 bytes) in little-endian format
-		fputc(pcm_sample & 0xFF, subprocess_stdin);
-		fputc((pcm_sample >> 8) & 0xFF, subprocess_stdin);
-	}
-	
-	// explicitly flush the stream to force data through the pipe immediately
-	fflush(subprocess_stdin);
-
+	return EXIT_SUCCESS;
+}
+int closeAudioSubprocess(void) {
 	// close the stream and wait for the child process to terminate
 	int status = pclose(subprocess_stdin);
 	
@@ -62,19 +91,78 @@ int playSound(double duration_seconds) {
 
 	return EXIT_SUCCESS;
 }
+void queueAudio(double duration_seconds, double volume) {
+	long num_samples = SAMPLE_RATE * duration_seconds;
+	double two_pi = 2.0 * PI;
+
+	for (long i = 0; i < num_samples; i++) {
+		// calculate the sine wave value between -1.0 and 1.0
+		double t = (double)i / SAMPLE_RATE;
+		double sample_value = volume * sin(two_pi * FREQUENCY * t);
+
+		// scale to 16-bit signed integer PCM (-32768 to 32767)
+		int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
+
+		// write the 16-bit sample (2 bytes) in little-endian format
+		uint8_t right_byte = pcm_sample & 0xFF;
+		uint8_t left_byte = (pcm_sample >> 8) & 0xFF;
+		fputc(right_byte, subprocess_stdin);
+		fputc(left_byte, subprocess_stdin);
+	}
+}
+void queueSound(double duration_seconds) {
+	queueAudio(duration_seconds, 1);
+}
+void queueQuiet(double duration_seconds) {
+	queueAudio(duration_seconds, 0);
+}
+// must queue audio first to be played
+void playSound(void) {
+	// explicitly flush the stream to force data through the pipe immediately
+	fflush(subprocess_stdin);
+}
 void sleep_double(double duration_seconds) {
-	int duration_microseconds = (int)(duration_seconds*100000);
+	int duration_microseconds = (int)(duration_seconds*1000000);
 	usleep(duration_microseconds);
 }
-int main(void) {
-	// letter 'F'
-	playSound(DIT_DURATION_SECS);
-	sleep_double(BIT_INTERVAL_DURATION_SECS);
-	playSound(DIT_DURATION_SECS);
-	sleep_double(BIT_INTERVAL_DURATION_SECS);
-	playSound(DAH_DURATIONS_SECS);
-	sleep_double(BIT_INTERVAL_DURATION_SECS);
-	playSound(DIT_DURATION_SECS);
-	sleep_double(BIT_INTERVAL_DURATION_SECS);
+int send_message(const char* const message) {
+	for (int i = 0; message[i] != '\0'; i++) {
+		// TODO: handle spaces for multiple words to have correct timing
+		const char letter = message[i];
+		const char* morse = letters_morse[(int)letter];
+		if (morse == NULL) {
+			perror("morse for letter '");
+			perror(&letter);
+			perror("' has no associated morse\n");
+			return EXIT_FAILURE;
+		}
+
+		for (int m = 0; morse[m] != '\0'; m++) {
+			const char bit = morse[m];
+			if (bit == '.') {
+				queueSound(DIT_DURATION_SECS);
+			}
+			else if (bit == '-') {
+				queueSound(DAH_DURATIONS_SECS);
+			}
+			else {
+				perror("Unrecognised morse bit '");
+				perror(&bit);
+				perror("'\n");
+				return EXIT_FAILURE;
+			}
+			queueQuiet(BIT_INTERVAL_DURATION_SECS);
+		}
+		// finish waiting for letter end
+		queueQuiet(BIT_INTERVAL_DURATION_SECS);
+		queueQuiet(BIT_INTERVAL_DURATION_SECS);
+	}
+	playSound();
 	return EXIT_SUCCESS;
+}
+int main(void) {
+	startAudioSubprocess();
+	int success = send_message("hello");
+	closeAudioSubprocess();
+	return success;
 }
