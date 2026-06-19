@@ -6,11 +6,16 @@
 
 #define SAMPLE_RATE 48000		// matches system default
 #define FREQUENCY 440.0       	// Concert A4
-#define DURATION 0.1        	// Play for 5 seconds
+#define DIT_DURATION_SECS 0.2        // TODO: make settable as parameter for better practice of fast speeds
 #define AMPLITUDE 32767.0     	// Max 16-bit signed integer
 #define PI 3.141592653589793	// 15 dp is approximate max accuracy of double
 
-int main(void) {
+// morse code timings following international standard
+#define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3)
+#define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
+// TODO: word letter interval, word interval
+
+int playSound(double duration_seconds) {
 	// aplay is the audio software
 	// '-q' is quiet, no regular logging
 	// '-r 48000' is audio rate of 48000Hz (AKA 48000 samples/second)
@@ -28,7 +33,7 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-	long num_samples = SAMPLE_RATE * DURATION;
+	long num_samples = SAMPLE_RATE * duration_seconds;
     double two_pi = 2.0 * PI;
 	double t = 0;
     for (long i = 0; i < num_samples; i++) {
@@ -56,4 +61,20 @@ int main(void) {
     }
 
     return EXIT_SUCCESS;
+}
+void sleep_double(double duration_seconds) {
+    int duration_microseconds = (int)(duration_seconds*100000);
+    usleep(duration_microseconds);
+}
+int main(void) {
+	// letter 'F'
+	playSound(DIT_DURATION_SECS);
+	sleep_double(BIT_INTERVAL_DURATION_SECS);
+	playSound(DIT_DURATION_SECS);
+	sleep_double(BIT_INTERVAL_DURATION_SECS);
+	playSound(DAH_DURATIONS_SECS);
+	sleep_double(BIT_INTERVAL_DURATION_SECS);
+	playSound(DIT_DURATION_SECS);
+	sleep_double(BIT_INTERVAL_DURATION_SECS);
+	return EXIT_SUCCESS;
 }
