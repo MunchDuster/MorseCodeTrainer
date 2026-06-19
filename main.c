@@ -176,10 +176,7 @@ int send_message(const char* const message) {
 	return EXIT_SUCCESS;
 }
 void press_to_continue(void) {
-	printf("[press anything to continue]");
-	// while (getchar() != '\n') {
-	// 	printf("%d", getchar());
-	// }
+	printf("[press enter to continue]");
     getchar(); 
 }
 void print_counts(const int length, const char*const*const texts, const uint8_t*const counts) {
@@ -187,6 +184,13 @@ void print_counts(const int length, const char*const*const texts, const uint8_t*
 	for (int i = 0; i < length; i++) {
 		printf("%s\t%d\n", texts[i], counts[i]);
 	}
+}
+// random number from 0 to maxExclusive - 1
+int random_range(int maxExclusive) {
+	return (rand() % maxExclusive);
+}
+void clear_console(void) {
+	printf("\e[2J\e[H\n"); // clears and resets cursor position
 }
 
 int learnText(const char** texts, const int texts_length) {
@@ -196,10 +200,10 @@ int learnText(const char** texts, const int texts_length) {
 	int texts_still_learning = texts_length;
 	int index = 0;
 	while (texts_still_learning > 0) {
-		index++;
-		index %= texts_still_learning;
+		index = random_range(texts_still_learning);
+		clear_console();
 		const char* message = texts[index];
-		printf("\e[2J\e[H\n"); // clears and resets console window
+		playSound:
 		print_counts(texts_still_learning, texts, consecutive_correct_counts);
 		printf("Listen...\n");
 		int success;
@@ -209,11 +213,14 @@ int learnText(const char** texts, const int texts_length) {
 		}
 		
 		// check that user interprets message correctly
-		printf("What was said? ");
+		printf("What was said? (empty to play again) ");
 
 		char interpretation[1000];
 		while (fgets(interpretation, sizeof(interpretation), stdin) == NULL) {
 			perror("input too long, ignoring");
+		}
+		if (interpretation[0]=='\n') {
+			goto playSound;
 		}
 		
 		// compare interpretation to actual
@@ -233,10 +240,9 @@ int learnText(const char** texts, const int texts_length) {
 		else {
 			printf("CORRECT\n");
 			consecutive_correct_counts[index]++;
-			bool completedText = consecutive_correct_counts[index] > CONSECUTIVE_CORRECT_THRESHOLD;
+			bool completedText = consecutive_correct_counts[index] >= CONSECUTIVE_CORRECT_THRESHOLD;
 			if (completedText) {
-				texts_still_learning--;
-				if (texts_still_learning > 0) {
+				if (texts_still_learning > 1) {
 					// swap out text with last to ensure all 0 to N-1 are valid
 					const int lastIndex = texts_still_learning - 1;
 					const char*const temp_text = texts[index];
@@ -247,10 +253,12 @@ int learnText(const char** texts, const int texts_length) {
 					consecutive_correct_counts[index] = consecutive_correct_counts[lastIndex];
 					consecutive_correct_counts[lastIndex] = temp_count;
 				}
+				texts_still_learning--;
 			}
 		}
 		press_to_continue();
 	}
+	clear_console();
 	return EXIT_SUCCESS;
 }
 int playStage1(void) {
@@ -260,7 +268,11 @@ int playStage1(void) {
 	// stage 1: part 1: simple letters
 	const int simple_letters_count = 8;
 	const char* simple_letters[] = {"e","t","i","a","n","m","o","s"};
-	return learnText(simple_letters, simple_letters_count);
+	int success = learnText(simple_letters, simple_letters_count);
+	if (EXIT_SUCCESS == success) {
+		printf("completed stage1!\n");
+	}
+	return success;
 }
 int main(void) {
 	int success = playStage1();
