@@ -1,31 +1,3 @@
-// WHO
-// Made by MunchDuster, 2026
-
-// WHAT
-// Program to practice morse code
-// Three stages
-// Stage 1:
-// 	Loop of listening to Letters and typing in letter heard
-// 	Keep going until all letters correct 3 times consecutively
-// Stage 2:
-//	(Implement later) Full words, gets progressively more difficult
-// Stage 3:
-//	(Implement later) Full sentences, gets progresively more difficult
-
-// ENVIRONMENT
-// Linux desktop, Ubuntu based
-
-// HOW
-// Use linux audio program 'aplay' as subprocess and pipe in audio bytes
-// Basically minimize imports and keep it simple
-// TODO: Figure out custom audio playing without using aplay
-
-// COMPILE
-// clang -Wall -Wextra main.c -o morser -lm
-
-// RUN
-// ./morser
-
 #include <stdio.h>		// perror(), printf()
 #include <stdlib.h> 	// exit(), EXIT_FAILURE
 #include <unistd.h> 	// fork()
