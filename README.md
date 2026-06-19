@@ -21,7 +21,7 @@ Basically minimize imports and keep it simple
 TODO: Figure out custom audio playing without using aplay
 
 COMPILE
-`clang -Wall -Wextra main.c -o morser -lm`
+`clang -Wall -Wextra -Werror main.c -o morser -lm`
 
 RUN
 `./morser`
