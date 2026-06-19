@@ -4,19 +4,24 @@
 #include <sys/wait.h>	// waitpid()
 #include <math.h>		// sin()
 #include <stdint.h>		// uint8_t, uint16_t, etc
+#include <stdbool.h>	// bool
+#include <string.h>		// memset()
 
 // audio consts
 #define SAMPLE_RATE 48000		// matches system default
-#define FREQUENCY 440.0			// Concert A4
+#define FREQUENCY 880.0			// Concert A5
 #define AMPLITUDE 32767.0		// Max 16-bit signed integer
 #define PI 3.141592653589793	// 15 dp is approximate max accuracy of double
 
 // morse code timings following international standard
-#define WORDS_PER_SECOND 10.0		// TODO: make settable as parameter for better practice of fast speeds
+#define WORDS_PER_SECOND 15.0		// TODO: make settable as parameter for better practice of fast speeds
 #define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
 #define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
 // TODO: word letter interval, word interval
+
+// learning consts
+#define CONSECUTIVE_CORRECT_THRESHOLD 3 // TODO: make settable as parameter for user preference
 
 // input index is the character and output string of dits and dahs
 // not the most memory efficient but easy to encode correctly and fairly simple to decode
@@ -126,6 +131,12 @@ void sleep_double(double duration_seconds) {
 	usleep(duration_microseconds);
 }
 int send_message(const char* const message) {
+	int success;
+	success = startAudioSubprocess();
+	if (success != EXIT_SUCCESS) {
+		return success;
+	}
+	queueQuiet(DAH_DURATIONS_SECS); // start with quiet to let audio program start and get ready
 	for (int i = 0; message[i] != '\0'; i++) {
 		// TODO: handle spaces for multiple words to have correct timing
 		const char letter = message[i];
@@ -158,11 +169,100 @@ int send_message(const char* const message) {
 		queueQuiet(BIT_INTERVAL_DURATION_SECS);
 	}
 	playSound();
+	success = closeAudioSubprocess();
+	if (success != EXIT_SUCCESS) {
+		return success;
+	}
 	return EXIT_SUCCESS;
 }
+void press_to_continue(void) {
+	printf("[press anything to continue]");
+	// while (getchar() != '\n') {
+	// 	printf("%d", getchar());
+	// }
+    getchar(); 
+}
+void print_counts(const int length, const char*const*const texts, const uint8_t*const counts) {
+	printf("Current scores\n");
+	for (int i = 0; i < length; i++) {
+		printf("%s\t%d\n", texts[i], counts[i]);
+	}
+}
+
+int learnText(const char** texts, const int texts_length) {
+	uint8_t consecutive_correct_counts[texts_length];
+	memset(consecutive_correct_counts, 0, texts_length * sizeof(uint8_t));
+
+	int texts_still_learning = texts_length;
+	int index = 0;
+	while (texts_still_learning > 0) {
+		index++;
+		index %= texts_still_learning;
+		const char* message = texts[index];
+		printf("\e[2J\e[H\n"); // clears and resets console window
+		print_counts(texts_still_learning, texts, consecutive_correct_counts);
+		printf("Listen...\n");
+		int success;
+		success = send_message(message);
+		if (success != EXIT_SUCCESS) {
+			return success;
+		}
+		
+		// check that user interprets message correctly
+		printf("What was said? ");
+
+		char interpretation[1000];
+		while (fgets(interpretation, sizeof(interpretation), stdin) == NULL) {
+			perror("input too long, ignoring");
+		}
+		
+		// compare interpretation to actual
+		bool wasCorrect = true;
+		for (int c = 0; message[c] != '\0' && interpretation[c] != '\0'; c++) {
+			if (message[c] != interpretation[c]) {
+				wasCorrect = false;
+				break;
+			}
+		}
+		if (!wasCorrect) {
+			printf("INCORRECT\n");
+			printf("You guessed:\t %s", interpretation);
+			printf("Correct was:\t %s\n", message);
+			consecutive_correct_counts[index] = 0;
+		}
+		else {
+			printf("CORRECT\n");
+			consecutive_correct_counts[index]++;
+			bool completedText = consecutive_correct_counts[index] > CONSECUTIVE_CORRECT_THRESHOLD;
+			if (completedText) {
+				texts_still_learning--;
+				if (texts_still_learning > 0) {
+					// swap out text with last to ensure all 0 to N-1 are valid
+					const int lastIndex = texts_still_learning - 1;
+					const char*const temp_text = texts[index];
+					texts[index] = texts[lastIndex];
+					texts[lastIndex] = temp_text;
+					// and swap counts to keep alignment
+					const int temp_count = consecutive_correct_counts[index];
+					consecutive_correct_counts[index] = consecutive_correct_counts[lastIndex];
+					consecutive_correct_counts[lastIndex] = temp_count;
+				}
+			}
+		}
+		press_to_continue();
+	}
+	return EXIT_SUCCESS;
+}
+int playStage1(void) {
+	printf("Entering stage 1\n");
+	press_to_continue();
+
+	// stage 1: part 1: simple letters
+	const int simple_letters_count = 8;
+	const char* simple_letters[] = {"e","t","i","a","n","m","o","s"};
+	return learnText(simple_letters, simple_letters_count);
+}
 int main(void) {
-	startAudioSubprocess();
-	int success = send_message("hello");
-	closeAudioSubprocess();
+	int success = playStage1();
 	return success;
 }
