@@ -18,6 +18,7 @@
 #define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
 #define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
+#define GAIN_TIME_SECS 0.01		// prevents audio popping
 // TODO: word letter interval, word interval
 
 // learning consts
@@ -103,7 +104,17 @@ void queueAudio(double duration_seconds, double volume) {
 	for (long i = 0; i < num_samples; i++) {
 		// calculate the sine wave value between -1.0 and 1.0
 		double t = (double)i / SAMPLE_RATE;
-		double sample_value = volume * sin(two_pi * FREQUENCY * t);
+		double amplitude = volume;
+
+		// gradually increase amplitude at start
+		if (t < GAIN_TIME_SECS) {
+			amplitude *= (double)t / GAIN_TIME_SECS;
+		}
+		// gradually decrease amplitude at end
+		else if ((duration_seconds - t) < GAIN_TIME_SECS) {
+			amplitude *= (double)(duration_seconds - t) / GAIN_TIME_SECS;
+		}
+		double sample_value = amplitude * sin(two_pi * FREQUENCY * t);
 
 		// scale to 16-bit signed integer PCM (-32768 to 32767)
 		int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
@@ -201,9 +212,9 @@ int learnText(const char** texts, const int texts_length) {
 	int index = 0;
 	while (texts_still_learning > 0) {
 		index = random_range(texts_still_learning);
-		clear_console();
 		const char* message = texts[index];
 		playSound:
+		clear_console();
 		print_counts(texts_still_learning, texts, consecutive_correct_counts);
 		printf("Listen...\n");
 		int success;
@@ -261,18 +272,45 @@ int learnText(const char** texts, const int texts_length) {
 	clear_console();
 	return EXIT_SUCCESS;
 }
+bool press_to_continue_or_skip(void) {
+	printf("[press enter to continue or space to skip]");
+	if (getchar() == ' ') {
+		getchar(); // read enter
+		return true;
+	}
+	return false;
+}
 int playStage1(void) {
-	printf("Entering stage 1\n");
-	press_to_continue();
+	bool skip;
 
 	// stage 1: part 1: simple letters
-	const int simple_letters_count = 8;
-	const char* simple_letters[] = {"e","t","i","a","n","m","o","s"};
-	int success = learnText(simple_letters, simple_letters_count);
-	if (EXIT_SUCCESS == success) {
-		printf("completed stage1!\n");
+	printf("Entering stage 1: Part 1: Easy letters\n");
+	skip = press_to_continue_or_skip();
+	if (!skip) {
+		const int simple_letters_count = 8;
+		const char* simple_letters[] = {"e","t","i","a","n","m","o","s"};
+		int success = learnText(simple_letters, simple_letters_count);
+		if (EXIT_SUCCESS != success) {
+			return success;
+		}
+		printf("completed stage1 part1!\n");
 	}
-	return success;
+
+	// stage 1: part 2: more letters
+	printf("Entering stage 1: Part 2: More letters\n");
+	skip = press_to_continue_or_skip();
+	if (!skip) {
+		const int simple_letters_count = 16;
+		const char* letters[] = {"e","t","i","a","n","m","o","s", "g","d","k","r","u","w","c","p"};
+		int success = learnText(letters, simple_letters_count);
+		if (EXIT_SUCCESS != success) {
+			return success;
+		}
+		printf("completed stage1 part2!\n");
+	}
+
+	printf("completed stage1!\n");
+	return EXIT_SUCCESS;
 }
 int main(void) {
 	int success = playStage1();
