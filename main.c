@@ -273,9 +273,9 @@ int learnText(const char** texts, const int texts_length) {
 				printf("cleared other\n");
 				consecutive_correct_counts[other_index] = (uint8_t)0;
 			}
+			press_to_continue();
 		}
 		else {
-			printf("CORRECT\n");
 			consecutive_correct_counts[index]++;
 			bool completedText = consecutive_correct_counts[index] >= CONSECUTIVE_CORRECT_THRESHOLD;
 			if (completedText) {
@@ -293,7 +293,6 @@ int learnText(const char** texts, const int texts_length) {
 				texts_still_learning--;
 			}
 		}
-		press_to_continue();
 	}
 	clear_console();
 	return EXIT_SUCCESS;
