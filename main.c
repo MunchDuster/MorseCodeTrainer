@@ -15,15 +15,16 @@
 #define PI 3.141592653589793	// 15 dp is approximate max accuracy of double
 
 // morse code timings following international standard
-#define WORDS_PER_SECOND 15.0		// TODO: make settable as parameter for better practice of fast speeds
+#define WORDS_PER_SECOND 20.0		// TODO: make settable as parameter for better practice of fast speeds
 #define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
 #define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
-#define GAIN_TIME_SECS 0.01		// prevents audio popping
+#define NORMAL_VOLUME 0.5			// TODO: make settable as parameter for user preference
+#define GAIN_TIME_SECS 0.005		// prevents audio popping
 // TODO: word letter interval, word interval
 
 // learning consts
-#define CONSECUTIVE_CORRECT_THRESHOLD 3 // TODO: make settable as parameter for user preference
+#define CONSECUTIVE_CORRECT_THRESHOLD 5 // TODO: make settable as parameter for user preference
 
 // input index is the character and output string of dits and dahs
 // not the most memory efficient but easy to encode correctly and fairly simple to decode
@@ -128,7 +129,7 @@ void queueAudio(double duration_seconds, double volume) {
 	}
 }
 void queueSound(double duration_seconds) {
-	queueAudio(duration_seconds, 1);
+	queueAudio(duration_seconds, NORMAL_VOLUME);
 }
 void queueQuiet(double duration_seconds) {
 	queueAudio(duration_seconds, 0);
