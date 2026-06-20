@@ -279,7 +279,6 @@ int learnText(const char** texts, const int texts_length) {
 			consecutive_correct_counts[index] = (uint8_t)0;
 			// if confused for another, reset the other as well
 			if (other_index != -1) {
-				printf("cleared other\n");
 				consecutive_correct_counts[other_index] = (uint8_t)0;
 			}
 			press_to_continue();
