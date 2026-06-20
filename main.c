@@ -248,7 +248,31 @@ int learnText(const char** texts, const int texts_length) {
 			printf("INCORRECT\n");
 			printf("You guessed:\t %s", interpretation);
 			printf("Correct was:\t %s\n", message);
-			consecutive_correct_counts[index] = 0;
+			send_message(message);
+
+			// look for other in texts
+			int other_index = -1;
+			for (int i = 0; i < texts_still_learning; i++) {
+				if (i == index) continue;
+				bool match = interpretation[0] == texts[i][0];
+				for (int c = 0; interpretation[c] != '\0' && texts[i][c] != '\0' && interpretation[c] != '\n'; c++) {
+					if (interpretation[c] != texts[i][c]) {
+						match = false;
+						break;
+					}
+				}
+				if (match) {
+					other_index = i;
+					break;
+				}
+			}
+
+			consecutive_correct_counts[index] = (uint8_t)0;
+			// if confused for another, reset the other as well
+			if (other_index != -1) {
+				printf("cleared other\n");
+				consecutive_correct_counts[other_index] = (uint8_t)0;
+			}
 		}
 		else {
 			printf("CORRECT\n");
