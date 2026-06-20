@@ -319,9 +319,9 @@ int playStage1(void) {
 	printf("Entering stage 1: Part 1: Easy letters\n");
 	skip = press_to_continue_or_skip();
 	if (!skip) {
-		const int simple_letters_count = 8;
-		const char* simple_letters[] = {"e","t","i","a","n","m","o","s"};
-		int success = learnText(simple_letters, simple_letters_count);
+		const int count = 8;
+		const char* letters[] = {"e","t","i","a","n","m","o","s"};
+		int success = learnText(letters, count);
 		if (EXIT_SUCCESS != success) {
 			return success;
 		}
@@ -331,9 +331,9 @@ int playStage1(void) {
 	printf("Entering stage 1: Part 2: More letters\n");
 	skip = press_to_continue_or_skip();
 	if (!skip) {
-		const int simple_letters_count = 8;
+		const int count = 8;
 		const char* letters[] = {"g","d","k","r","u","w","c","p"};
-		int success = learnText(letters, simple_letters_count);
+		int success = learnText(letters, count);
 		if (EXIT_SUCCESS != success) {
 			return success;
 		}
@@ -343,13 +343,28 @@ int playStage1(void) {
 	printf("Entering stage 1: Part 3: The rest of the letters\n");
 	skip = press_to_continue_or_skip();
 	if (!skip) {
-		const int simple_letters_count = 10;
-		const char* letters[] = {"b", "f", "h", "j", "l", "q", "v", "x", "y", "z"};
-		int success = learnText(letters, simple_letters_count);
+		const int count = 10;
+		const char* letters[] = {"b","f","h","j","l","q","v","x","y","z"};
+		int success = learnText(letters, count);
 		if (EXIT_SUCCESS != success) {
 			return success;
 		}
-		printf("completed stage1 part2!\n");
+		printf("completed stage1 part3!\n");
+	}
+
+	printf("Entering stage 1: Part 4: All letters\n");
+	skip = press_to_continue_or_skip();
+	if (!skip) {
+		const int count = 26;
+		const char* letters[] = {	"e","t","i","a","n","m","o","s",
+									"g","d","k","r","u","w","c","p",
+									"b","f","h","j","l","q","v","x","y","z"	
+								};
+		int success = learnText(letters, count);
+		if (EXIT_SUCCESS != success) {
+			return success;
+		}
+		printf("completed stage1 part4!\n");
 	}
 
 	printf("completed stage1!\n");
