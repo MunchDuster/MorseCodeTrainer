@@ -6,6 +6,7 @@
 #include <stdint.h>		// uint8_t, uint16_t, etc
 #include <stdbool.h>	// bool
 #include <string.h>		// memset()
+#include <time.h>   	// time()
 
 // audio consts
 #define SAMPLE_RATE 48000		// matches system default
@@ -313,6 +314,7 @@ int playStage1(void) {
 	return EXIT_SUCCESS;
 }
 int main(void) {
+	srand(time(NULL)); // seed random number with curtime
 	int success = playStage1();
 	return success;
 }
