@@ -309,7 +309,6 @@ bool press_to_continue_or_skip(void) {
 int playStage1(void) {
 	bool skip;
 
-	// stage 1: part 1: simple letters
 	printf("Entering stage 1: Part 1: Easy letters\n");
 	skip = press_to_continue_or_skip();
 	if (!skip) {
@@ -322,12 +321,23 @@ int playStage1(void) {
 		printf("completed stage1 part1!\n");
 	}
 
-	// stage 1: part 2: more letters
 	printf("Entering stage 1: Part 2: More letters\n");
 	skip = press_to_continue_or_skip();
 	if (!skip) {
-		const int simple_letters_count = 16;
-		const char* letters[] = {"e","t","i","a","n","m","o","s", "g","d","k","r","u","w","c","p"};
+		const int simple_letters_count = 8;
+		const char* letters[] = {"g","d","k","r","u","w","c","p"};
+		int success = learnText(letters, simple_letters_count);
+		if (EXIT_SUCCESS != success) {
+			return success;
+		}
+		printf("completed stage1 part2!\n");
+	}
+
+	printf("Entering stage 1: Part 3: The rest of the letters\n");
+	skip = press_to_continue_or_skip();
+	if (!skip) {
+		const int simple_letters_count = 10;
+		const char* letters[] = {"b", "f", "h", "j", "l", "q", "v", "x", "y", "z"};
 		int success = learnText(letters, simple_letters_count);
 		if (EXIT_SUCCESS != success) {
 			return success;
