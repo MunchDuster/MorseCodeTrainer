@@ -21,6 +21,7 @@
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
 #define NORMAL_VOLUME 0.5			// TODO: make settable as parameter for user preference
 #define GAIN_TIME_SECS 0.005		// prevents audio popping
+#define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
 // TODO: word letter interval, word interval
 
 // learning consts
@@ -68,6 +69,11 @@ char* letters_morse[256] = {
 };
 // 'input stream' to audio handler
 FILE *subprocess_stdin = NULL;
+
+int min(int a, int b) {
+	if (a > b) return b;
+	return a;
+}
 
 int startAudioSubprocess(void) {
 	// aplay is the audio software
@@ -194,8 +200,11 @@ void press_to_continue(void) {
 }
 void print_counts(const int length, const char*const*const texts, const uint8_t*const counts) {
 	printf("Current scores\n");
-	for (int i = 0; i < length; i++) {
-		printf("%s\t%d\n", texts[i], counts[i]);
+	for (int i = 0; i < min(length, COUNTS_DISPLAY_ROWS); i++) {
+		for (int c = i; c < length; c += COUNTS_DISPLAY_ROWS) {
+			printf("%s\t%d\t", texts[c], counts[c]);
+		}
+		printf("\n");
 	}
 }
 // random number from 0 to maxExclusive - 1
