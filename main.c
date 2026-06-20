@@ -30,42 +30,60 @@
 // input index is the character and output string of dits and dahs
 // not the most memory efficient but easy to encode correctly and fairly simple to decode
 char* letters_morse[256] = {
-	['a'] = ".-",
-	['b'] = "-...",
-	['c'] = "-.-.",
-	['d'] = "-..",
-	['e'] = ".",
-	['f'] = "..-.",
-	['g'] = "--.",
-	['h'] = "....",
-	['i'] = "..",
-	['j'] = ".---",
-	['k'] = "-.-",
-	['l'] = ".-..",
-	['m'] = "--",
-	['n'] = "-.",
-	['o'] = "---",
-	['p'] = ".--.",
-	['q'] = "--.-",
-	['r'] = ".-.",
-	['s'] = "...",
-	['t'] = "-",
-	['u'] = "..-",
-	['v'] = "...-",
-	['w'] = ".--",
-	['x'] = "-..-",
-	['y'] = "-.--",
-	['z'] = "--..",
-	['0'] = "-----",
-	['1'] = ".----",
-	['2'] = "..---",
-	['3'] = "...--",
-	['4'] = "....-",
-	['5'] = ".....",
-	['6'] = "-....",
-	['7'] = "--...",
-	['8'] = "---..",
-	['9'] = "----.",
+	['a']  = ".-",
+	['b']  = "-...",
+	['c']  = "-.-.",
+	['d']  = "-..",
+	['e']  = ".",
+	['f']  = "..-.",
+	['g']  = "--.",
+	['h']  = "....",
+	['i']  = "..",
+	['j']  = ".---",
+	['k']  = "-.-",
+	['l']  = ".-..",
+	['m']  = "--",
+	['n']  = "-.",
+	['o']  = "---",
+	['p']  = ".--.",
+	['q']  = "--.-",
+	['r']  = ".-.",
+	['s']  = "...",
+	['t']  = "-",
+	['u']  = "..-",
+	['v']  = "...-",
+	['w']  = ".--",
+	['x']  = "-..-",
+	['y']  = "-.--",
+	['z']  = "--..",
+
+	['0']  = "-----",
+	['1']  = ".----",
+	['2']  = "..---",
+	['3']  = "...--",
+	['4']  = "....-",
+	['5']  = ".....",
+	['6']  = "-....",
+	['7']  = "--...",
+	['8']  = "---..",
+	['9']  = "----.",
+
+	['&']  = ".-...",
+	['\''] = ".----.",
+	['@']  = ".--.-.",
+	[')']  = "-.--.-",
+	['(']  = "-.--.",
+	[':']  = "---...",
+	[',']  = "--..--",
+	['=']  = "-...-",
+	['!']  = "-.-.--",
+	['.']  = ".-.-.-",
+	['-']  = "-....-",
+	['%']  = "-----",
+	['+']  = ".-.-.",
+	['"']  = ".-..-.",
+	['?']  = "..--..",
+	['/']  = "-..-.",
 };
 // 'input stream' to audio handler
 FILE *subprocess_stdin = NULL;
@@ -227,7 +245,8 @@ int learnText(const char** texts, const int texts_length) {
 		playSound:
 		clear_console();
 		print_counts(texts_still_learning, texts, consecutive_correct_counts);
-		printf("Listen...\n");
+		printf("Listen... ");
+		fflush(stdout);
 		int success;
 		success = send_message(message);
 		if (success != EXIT_SUCCESS) {
@@ -235,7 +254,7 @@ int learnText(const char** texts, const int texts_length) {
 		}
 		
 		// check that user interprets message correctly
-		printf("What was said? (empty to play again) ");
+		printf("\rWhat was said? (empty to play again) ");
 
 		char interpretation[1000];
 		while (fgets(interpretation, sizeof(interpretation), stdin) == NULL) {
