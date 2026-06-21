@@ -8,7 +8,7 @@ Three stages
 	Loop of listening to Letters and typing in letter heard
 	Keep going until all letters correct 3 times consecutively
 2. Words
-	(Implement later) Full words, gets progressively more difficult
+	Full words, gets progressively more difficult
 3. Sentences
 	(Implement later) Full sentences, gets progresively more difficult
 

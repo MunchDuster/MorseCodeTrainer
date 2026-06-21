@@ -22,6 +22,7 @@
 #define NORMAL_VOLUME 0.5			// TODO: make settable as parameter for user preference
 #define GAIN_TIME_SECS 0.005		// prevents audio popping
 #define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
+#define MAX_WORD_LENGTH 256
 // TODO: word letter interval, word interval
 
 // learning consts
@@ -29,7 +30,7 @@
 
 // input index is the character and output string of dits and dahs
 // not the most memory efficient but easy to encode correctly and fairly simple to decode
-char* letters_morse[256] = {
+const char*const letters_morse[256] = {
 	['a']  = ".-",
 	['b']  = "-...",
 	['c']  = "-.-.",
@@ -85,6 +86,101 @@ char* letters_morse[256] = {
 	['?']  = "..--..",
 	['/']  = "-..-.",
 };
+struct lesson_contents {
+	int text_count;
+	const char** texts;
+};
+struct lesson {
+	char* description;
+	char* source_file_name;
+};
+struct stage {
+	int lesson_count;
+	const char* const name;
+	struct lesson* lessons;
+};
+struct lesson_contents* load_words_file(const char*const filename) {
+	if (filename == NULL) {
+		fprintf(stderr, "NO FILENAME\n");
+		return NULL;
+	}
+	if (access(filename, R_OK) != EXIT_SUCCESS) {
+		fprintf(stderr, "File not accessible: %s\n", filename);
+		return NULL;
+	}
+	FILE* file_read_stream = fopen(filename, "r");
+	if (file_read_stream == NULL) {
+        fprintf(stderr, "Failed to open file '%s'\n", filename);
+        return NULL;
+    }
+
+    char ch;
+	char word[MAX_WORD_LENGTH];
+
+	// initially only keep one word
+	char** words = calloc(1, sizeof(char*));
+	int words_capacity = 1;
+	
+	int letter_index = 0;
+	int words_index = 0;
+    while ((ch = fgetc(file_read_stream)) != EOF) {
+		if (ch != '\n') {
+			word[letter_index] = ch;
+			letter_index++;
+			if (letter_index > MAX_WORD_LENGTH) {
+				perror("word too long!");
+			    fclose(file_read_stream);
+				return NULL;
+			}
+			continue;
+		}
+		// word finished
+		word[letter_index] = '\0';
+		// letter_index++;
+		words[words_index] = calloc(letter_index, sizeof(char));
+		letter_index = 0;
+
+		if (words_index >= words_capacity) {
+			words_capacity *= 2;
+			// make new larger array and copy over
+			words = realloc(words, sizeof(char*)*words_capacity);
+			if (words == NULL) {
+				perror("failed copying words into larger array");
+    			fclose(file_read_stream);
+				return NULL;
+			}
+		}
+		strcpy(words[words_index], word);
+		words_index++;
+    }
+
+    fclose(file_read_stream);
+
+	struct lesson_contents* result = calloc(1, sizeof(struct lesson_contents));
+	result->text_count = words_index;
+	result->texts = (const char**)words; // letters within words wont change from here on out
+    return result;
+}
+static const struct lesson stage1_lessons[] = {
+    {"simple letters", "data/letters_easy.txt"},
+    {"more letters", "data/letters_mid.txt"},
+    {"hard letters", "data/letters_hard.txt"},
+    {"all letters", "data/letters_alphabet.txt"},
+    {"numbers", "data/letters_numbers.txt"}
+};
+static const struct lesson stage2_lessons[] = {
+    {"small words - 2 letters", "data/words_2-letters.txt"},
+	{"small words - 3 letters", "data/words_3-letters.txt"},
+	{"small words - 4 letters", "data/words_4-letters.txt"},
+	{"words - 5 letters", "data/words_5-letters.txt"},
+	{"long words", "data/words_long.txt"}
+};
+const struct stage stages[] = {
+	{5, "Letters", (struct lesson*)stage1_lessons},
+	{5, "Words", (struct lesson*)stage2_lessons}
+	// TODO: stage 3: Sentences
+};
+
 // 'input stream' to audio handler
 FILE *subprocess_stdin = NULL;
 
@@ -309,7 +405,7 @@ int learnText(const char** texts, const int texts_length) {
 				if (texts_still_learning > 1) {
 					// swap out text with last to ensure all 0 to N-1 are valid
 					const int lastIndex = texts_still_learning - 1;
-					const char*const temp_text = texts[index];
+					const char* temp_text = texts[index];
 					texts[index] = texts[lastIndex];
 					texts[lastIndex] = temp_text;
 					// and swap counts to keep alignment
@@ -327,70 +423,45 @@ int learnText(const char** texts, const int texts_length) {
 bool press_to_continue_or_skip(void) {
 	printf("[press enter to continue or space to skip]");
 	if (getchar() == ' ') {
-		getchar(); // read enter
+		while (getchar() != '\n') ; // read all other chars
 		return true;
 	}
 	return false;
 }
-int playStage1(void) {
+int play(void) {
 	bool skip;
+	for (int stage_index = 0; stage_index < 2; stage_index++) {
+		const struct stage stage = stages[stage_index];
+		printf("Stage %d: %s\n", stage_index + 1, stage.name);
+		skip = press_to_continue_or_skip();
+		if (skip) continue;
 
-	printf("Entering stage 1: Part 1: Easy letters\n");
-	skip = press_to_continue_or_skip();
-	if (!skip) {
-		const int count = 8;
-		const char* letters[] = {"e","t","i","a","n","m","o","s"};
-		int success = learnText(letters, count);
-		if (EXIT_SUCCESS != success) {
-			return success;
+		for (int lesson_index = 0; lesson_index < stage.lesson_count; lesson_index++) {
+			const struct lesson lesson = stage.lessons[lesson_index];
+			printf("Stage %d: Lesson %d: %s\n", stage_index + 1, lesson_index + 1, lesson.description);
+			skip = press_to_continue_or_skip();
+			if (skip) continue;
+			struct lesson_contents* lesson_contents = load_words_file(lesson.source_file_name);
+			if (lesson_contents == NULL) {
+				perror("could not load lesson contents from file");
+				return EXIT_FAILURE;
+			}
+			const int count = lesson_contents->text_count;
+			const char** texts = lesson_contents->texts;
+			int success = learnText(texts, count);
+			if (EXIT_SUCCESS != success) {
+				return success;
+			}
+			printf("Completed lesson\n");
 		}
-		printf("completed stage1 part1!\n");
+		printf("Completed section\n");
 	}
 
-	printf("Entering stage 1: Part 2: More letters\n");
-	skip = press_to_continue_or_skip();
-	if (!skip) {
-		const int count = 8;
-		const char* letters[] = {"g","d","k","r","u","w","c","p"};
-		int success = learnText(letters, count);
-		if (EXIT_SUCCESS != success) {
-			return success;
-		}
-		printf("completed stage1 part2!\n");
-	}
-
-	printf("Entering stage 1: Part 3: The rest of the letters\n");
-	skip = press_to_continue_or_skip();
-	if (!skip) {
-		const int count = 10;
-		const char* letters[] = {"b","f","h","j","l","q","v","x","y","z"};
-		int success = learnText(letters, count);
-		if (EXIT_SUCCESS != success) {
-			return success;
-		}
-		printf("completed stage1 part3!\n");
-	}
-
-	printf("Entering stage 1: Part 4: All letters\n");
-	skip = press_to_continue_or_skip();
-	if (!skip) {
-		const int count = 26;
-		const char* letters[] = {	"e","t","i","a","n","m","o","s",
-									"g","d","k","r","u","w","c","p",
-									"b","f","h","j","l","q","v","x","y","z"	
-								};
-		int success = learnText(letters, count);
-		if (EXIT_SUCCESS != success) {
-			return success;
-		}
-		printf("completed stage1 part4!\n");
-	}
-
-	printf("completed stage1!\n");
 	return EXIT_SUCCESS;
 }
+
 int main(void) {
 	srand(time(NULL)); // seed random number with curtime
-	int success = playStage1();
+	int success = play();
 	return success;
 }
