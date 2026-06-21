@@ -24,6 +24,10 @@
 #define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
 #define MAX_WORD_LENGTH 256
 // TODO: word letter interval, word interval
+// TODO: limit amount of texts practicing (longer word lists get quite long but varied pratice is good)
+// TODO: add permanent practice saving (be able to auto-continue where left off, maybe also anki-style retention setup)
+// TODO: stage4? (sending messages)
+// TODO: stage5? (two-way dialogues/communications)
 
 // learning consts
 #define CONSECUTIVE_CORRECT_THRESHOLD 5 // TODO: make settable as parameter for user preference
