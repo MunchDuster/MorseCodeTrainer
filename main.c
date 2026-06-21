@@ -428,7 +428,8 @@ bool press_to_continue_or_skip(void) {
 	}
 	return false;
 }
-int play(void) {
+int main(void) {
+	srand(time(NULL)); // seed random number with curtime
 	bool skip;
 	for (int stage_index = 0; stage_index < 2; stage_index++) {
 		const struct stage stage = stages[stage_index];
@@ -456,12 +457,5 @@ int play(void) {
 		}
 		printf("Completed section\n");
 	}
-
 	return EXIT_SUCCESS;
-}
-
-int main(void) {
-	srand(time(NULL)); // seed random number with curtime
-	int success = play();
-	return success;
 }
