@@ -91,17 +91,17 @@ const char*const letters_morse[256] = {
 	['/']  = "-..-.",
 };
 struct lesson_contents {
-	int text_count;
-	const char** texts;
+	const int text_count;
+	const char**const texts;
 };
 struct lesson {
-	char* description;
-	char* source_file_name;
+	const char*const description;
+	const char*const source_file_name;
 };
 struct stage {
-	int lesson_count;
-	const char* const name;
-	struct lesson* lessons;
+	const int lesson_count;
+	const char*const name;
+	const struct lesson*const lessons;
 };
 struct lesson_contents* load_words_file(const char*const filename) {
 	if (filename == NULL) {
@@ -158,11 +158,11 @@ struct lesson_contents* load_words_file(const char*const filename) {
 		words_index++;
     }
 
-    fclose(file_read_stream);
-
 	struct lesson_contents* result = calloc(1, sizeof(struct lesson_contents));
-	result->text_count = words_index;
-	result->texts = (const char**)words; // letters within words wont change from here on out
+	const struct lesson_contents temp = {words_index, (const char**const) words};
+	memcpy(result, &temp, sizeof(struct lesson_contents));
+
+    fclose(file_read_stream);
     return result;
 }
 static const struct lesson stage1_lessons[] = {
@@ -188,7 +188,7 @@ const struct stage stages[] = {
 // 'input stream' to audio handler
 FILE *subprocess_stdin = NULL;
 
-int min(int a, int b) {
+int min(const int a, const int b) {
 	if (a > b) return b;
 	return a;
 }
@@ -199,7 +199,8 @@ int startAudioSubprocess(void) {
 	// '-r 48000' is audio rate of 48000Hz (AKA 48000 samples/second)
 	// '-c 1' is 1 channel
 	// '-f S16_LE' is format of Signed 16-bit Little Endian
-	const char* const subprocess = "aplay -q -r 48000 -c 1 -f S16_LE";
+	// TODO: Figure out custom audio playing without using aplay, maybe interface directly with ALSA?
+	const char*const subprocess = "aplay -q -r 48000 -c 1 -f S16_LE";
 
 	// create the subprocess and open a write ("w") stream to its stdin
 	// this executes the command in a child process, keeping its input stream open as a file
@@ -214,7 +215,7 @@ int startAudioSubprocess(void) {
 }
 int closeAudioSubprocess(void) {
 	// close the stream and wait for the child process to terminate
-	int status = pclose(subprocess_stdin);
+	const int status = pclose(subprocess_stdin);
 	
 	if (status == -1) {
 		perror("Error closing subprocess");
@@ -223,13 +224,13 @@ int closeAudioSubprocess(void) {
 
 	return EXIT_SUCCESS;
 }
-void queueAudio(double duration_seconds, double volume) {
-	long num_samples = SAMPLE_RATE * duration_seconds;
-	double two_pi = 2.0 * PI;
+void queueAudio(const double duration_seconds, const double volume) {
+	const long num_samples = SAMPLE_RATE * duration_seconds;
+	const double two_pi = 2.0 * PI;
 
 	for (long i = 0; i < num_samples; i++) {
 		// calculate the sine wave value between -1.0 and 1.0
-		double t = (double)i / SAMPLE_RATE;
+		const double t = (double)i / SAMPLE_RATE;
 		double amplitude = volume;
 
 		// gradually increase amplitude at start
@@ -240,22 +241,22 @@ void queueAudio(double duration_seconds, double volume) {
 		else if ((duration_seconds - t) < GAIN_TIME_SECS) {
 			amplitude *= (double)(duration_seconds - t) / GAIN_TIME_SECS;
 		}
-		double sample_value = amplitude * sin(two_pi * FREQUENCY * t);
+		const double sample_value = amplitude * sin(two_pi * FREQUENCY * t);
 
 		// scale to 16-bit signed integer PCM (-32768 to 32767)
-		int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
+		const int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
 
 		// write the 16-bit sample (2 bytes) in little-endian format
-		uint8_t right_byte = pcm_sample & 0xFF;
-		uint8_t left_byte = (pcm_sample >> 8) & 0xFF;
+		const uint8_t right_byte = pcm_sample & 0xFF;
+		const uint8_t left_byte = (pcm_sample >> 8) & 0xFF;
 		fputc(right_byte, subprocess_stdin);
 		fputc(left_byte, subprocess_stdin);
 	}
 }
-void queueSound(double duration_seconds) {
+void queueSound(const double duration_seconds) {
 	queueAudio(duration_seconds, NORMAL_VOLUME);
 }
-void queueQuiet(double duration_seconds) {
+void queueQuiet(const double duration_seconds) {
 	queueAudio(duration_seconds, 0);
 }
 // must queue audio first to be played
@@ -263,11 +264,11 @@ void playSound(void) {
 	// explicitly flush the stream to force data through the pipe immediately
 	fflush(subprocess_stdin);
 }
-void sleep_double(double duration_seconds) {
-	int duration_microseconds = (int)(duration_seconds*1000000);
+void sleep_double(const double duration_seconds) {
+	const int duration_microseconds = (int)(duration_seconds*1000000);
 	usleep(duration_microseconds);
 }
-int send_message(const char* const message) {
+int send_message(const char*const message) {
 	int success;
 	success = startAudioSubprocess();
 	if (success != EXIT_SUCCESS) {
@@ -277,7 +278,7 @@ int send_message(const char* const message) {
 	for (int i = 0; message[i] != '\0'; i++) {
 		// TODO: handle spaces for multiple words to have correct timing
 		const char letter = message[i];
-		const char* morse = letters_morse[(int)letter];
+		const char*const morse = letters_morse[(int)letter];
 		if (morse == NULL) {
 			perror("morse for letter '");
 			perror(&letter);
@@ -326,14 +327,14 @@ void print_counts(const int length, const char*const*const texts, const uint8_t*
 	}
 }
 // random number from 0 to maxExclusive - 1
-int random_range(int maxExclusive) {
+int random_range(const int maxExclusive) {
 	return (rand() % maxExclusive);
 }
 void clear_console(void) {
 	printf("\e[2J\e[H\n"); // clears and resets cursor position
 }
 
-int learnText(const char** texts, const int texts_length) {
+int learnText(const char**const texts, const int texts_length) {
 	uint8_t consecutive_correct_counts[texts_length];
 	memset(consecutive_correct_counts, 0, texts_length * sizeof(uint8_t));
 
@@ -341,14 +342,13 @@ int learnText(const char** texts, const int texts_length) {
 	int index = 0;
 	while (texts_still_learning > 0) {
 		index = random_range(texts_still_learning);
-		const char* message = texts[index];
+		const char*const message = texts[index];
 		playSound:
 		clear_console();
 		print_counts(texts_still_learning, texts, consecutive_correct_counts);
 		printf("Listen... ");
 		fflush(stdout);
-		int success;
-		success = send_message(message);
+		const int success = send_message(message);
 		if (success != EXIT_SUCCESS) {
 			return success;
 		}
@@ -404,12 +404,12 @@ int learnText(const char** texts, const int texts_length) {
 		}
 		else {
 			consecutive_correct_counts[index]++;
-			bool completedText = consecutive_correct_counts[index] >= CONSECUTIVE_CORRECT_THRESHOLD;
+			const bool completedText = consecutive_correct_counts[index] >= CONSECUTIVE_CORRECT_THRESHOLD;
 			if (completedText) {
 				if (texts_still_learning > 1) {
 					// swap out text with last to ensure all 0 to N-1 are valid
 					const int lastIndex = texts_still_learning - 1;
-					const char* temp_text = texts[index];
+					const char*const temp_text = texts[index];
 					texts[index] = texts[lastIndex];
 					texts[lastIndex] = temp_text;
 					// and swap counts to keep alignment
@@ -446,14 +446,14 @@ int main(void) {
 			printf("Stage %d: Lesson %d: %s\n", stage_index + 1, lesson_index + 1, lesson.description);
 			skip = press_to_continue_or_skip();
 			if (skip) continue;
-			struct lesson_contents* lesson_contents = load_words_file(lesson.source_file_name);
+			const struct lesson_contents*const lesson_contents = load_words_file(lesson.source_file_name);
 			if (lesson_contents == NULL) {
 				perror("could not load lesson contents from file");
 				return EXIT_FAILURE;
 			}
 			const int count = lesson_contents->text_count;
-			const char** texts = lesson_contents->texts;
-			int success = learnText(texts, count);
+			const char**const texts = lesson_contents->texts;
+			const int success = learnText(texts, count);
 			if (EXIT_SUCCESS != success) {
 				return success;
 			}
