@@ -9,6 +9,7 @@
 
 #include "audio_handler.h"
 #include "morse_data.h"
+#include "lessons.h"
 
 // morse code timings following international standard
 #define WORDS_PER_SECOND 20.0		// TODO: make settable as parameter for better practice of fast speeds
@@ -17,7 +18,7 @@
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
 
 #define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
-#define MAX_WORD_LENGTH 256
+
 // TODO: word letter interval, word interval
 // TODO: limit amount of texts practicing (longer word lists get quite long but varied pratice is good)
 // TODO: add permanent practice saving (be able to auto-continue where left off, maybe also anki-style retention setup)
@@ -26,101 +27,6 @@
 
 // learning consts
 #define CONSECUTIVE_CORRECT_THRESHOLD 5 // TODO: make settable as parameter for user preference
-
-struct lesson_contents {
-	const int text_count;
-	const char**const texts;
-};
-struct lesson {
-	const char*const description;
-	const char*const source_file_name;
-};
-struct stage {
-	const int lesson_count;
-	const char*const name;
-	const struct lesson*const lessons;
-};
-struct lesson_contents* load_words_file(const char*const filename) {
-	if (filename == NULL) {
-		fprintf(stderr, "NO FILENAME\n");
-		return NULL;
-	}
-	if (access(filename, R_OK) != EXIT_SUCCESS) {
-		fprintf(stderr, "File not accessible: %s\n", filename);
-		return NULL;
-	}
-	FILE* file_read_stream = fopen(filename, "r");
-	if (file_read_stream == NULL) {
-        fprintf(stderr, "Failed to open file '%s'\n", filename);
-        return NULL;
-    }
-
-    char ch;
-	char word[MAX_WORD_LENGTH];
-
-	// initially only keep one word
-	char** words = calloc(1, sizeof(char*));
-	int words_capacity = 1;
-	
-	int letter_index = 0;
-	int words_index = 0;
-    while ((ch = fgetc(file_read_stream)) != EOF) {
-		if (ch != '\n') {
-			word[letter_index] = ch;
-			letter_index++;
-			if (letter_index > MAX_WORD_LENGTH) {
-				perror("word too long!");
-			    fclose(file_read_stream);
-				return NULL;
-			}
-			continue;
-		}
-		// word finished
-		word[letter_index] = '\0';
-		// letter_index++;
-		words[words_index] = calloc(letter_index, sizeof(char));
-		letter_index = 0;
-
-		if (words_index >= words_capacity) {
-			words_capacity *= 2;
-			// make new larger array and copy over
-			words = realloc(words, sizeof(char*)*words_capacity);
-			if (words == NULL) {
-				perror("failed copying words into larger array");
-    			fclose(file_read_stream);
-				return NULL;
-			}
-		}
-		strcpy(words[words_index], word);
-		words_index++;
-    }
-
-	struct lesson_contents* result = calloc(1, sizeof(struct lesson_contents));
-	const struct lesson_contents temp = {words_index, (const char**const) words};
-	memcpy(result, &temp, sizeof(struct lesson_contents));
-
-    fclose(file_read_stream);
-    return result;
-}
-static const struct lesson stage1_lessons[] = {
-    {"simple letters", "data/letters_easy.txt"},
-    {"more letters", "data/letters_mid.txt"},
-    {"hard letters", "data/letters_hard.txt"},
-    {"all letters", "data/letters_alphabet.txt"},
-    {"numbers", "data/letters_numbers.txt"}
-};
-static const struct lesson stage2_lessons[] = {
-    {"small words - 2 letters", "data/words_2-letters.txt"},
-	{"small words - 3 letters", "data/words_3-letters.txt"},
-	{"small words - 4 letters", "data/words_4-letters.txt"},
-	{"words - 5 letters", "data/words_5-letters.txt"},
-	{"long words", "data/words_long.txt"}
-};
-const struct stage stages[] = {
-	{5, "Letters", (struct lesson*)stage1_lessons},
-	{5, "Words", (struct lesson*)stage2_lessons}
-	// TODO: stage 3: Sentences
-};
 
 int min(const int a, const int b) {
 	if (a > b) return b;
@@ -298,7 +204,7 @@ int main(void) {
 	srand(time(NULL)); // seed random number with curtime
 	bool skip;
 	for (int stage_index = 0; stage_index < 2; stage_index++) {
-		const struct stage stage = stages[stage_index];
+		const struct stage stage = get_stage(stage_index);
 		printf("Stage %d: %s\n", stage_index + 1, stage.name);
 		skip = press_to_continue_or_skip();
 		if (skip) continue;
