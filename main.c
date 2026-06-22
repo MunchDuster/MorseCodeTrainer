@@ -1,26 +1,20 @@
 #include <stdio.h>		// perror(), printf()
 #include <stdlib.h>		// exit(), EXIT_FAILURE
-#include <unistd.h>		// fork()
+#include <unistd.h>		// R_OK
 #include <sys/wait.h>	// waitpid()
-#include <math.h>		// sin()
 #include <stdint.h>		// uint8_t, uint16_t, etc
 #include <stdbool.h>	// bool
 #include <string.h>		// memset()
 #include <time.h>   	// time()
 
-// audio consts
-#define SAMPLE_RATE 48000		// matches system default
-#define FREQUENCY 880.0			// Concert A5
-#define AMPLITUDE 32767.0		// Max 16-bit signed integer
-#define PI 3.141592653589793	// 15 dp is approximate max accuracy of double
+#include "audio_handler.h"
 
 // morse code timings following international standard
 #define WORDS_PER_SECOND 20.0		// TODO: make settable as parameter for better practice of fast speeds
 #define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
 #define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
-#define NORMAL_VOLUME 0.5			// TODO: make settable as parameter for user preference
-#define GAIN_TIME_SECS 0.005		// prevents audio popping
+
 #define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
 #define MAX_WORD_LENGTH 256
 // TODO: word letter interval, word interval
@@ -185,84 +179,9 @@ const struct stage stages[] = {
 	// TODO: stage 3: Sentences
 };
 
-// 'input stream' to audio handler
-FILE *subprocess_stdin = NULL;
-
 int min(const int a, const int b) {
 	if (a > b) return b;
 	return a;
-}
-
-int startAudioSubprocess(void) {
-	// aplay is the audio software
-	// '-q' is quiet, no regular logging
-	// '-r 48000' is audio rate of 48000Hz (AKA 48000 samples/second)
-	// '-c 1' is 1 channel
-	// '-f S16_LE' is format of Signed 16-bit Little Endian
-	// TODO: Figure out custom audio playing without using aplay, maybe interface directly with ALSA?
-	const char*const subprocess = "aplay -q -r 48000 -c 1 -f S16_LE";
-
-	// create the subprocess and open a write ("w") stream to its stdin
-	// this executes the command in a child process, keeping its input stream open as a file
-	subprocess_stdin = popen(subprocess, "w");
-	
-	// check if the subprocess failed to start
-	if (subprocess_stdin == NULL) {
-		perror("Failed to run subprocess");
-		return EXIT_FAILURE;
-	}
-	return EXIT_SUCCESS;
-}
-int closeAudioSubprocess(void) {
-	// close the stream and wait for the child process to terminate
-	const int status = pclose(subprocess_stdin);
-	
-	if (status == -1) {
-		perror("Error closing subprocess");
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
-}
-void queueAudio(const double duration_seconds, const double volume) {
-	const long num_samples = SAMPLE_RATE * duration_seconds;
-	const double two_pi = 2.0 * PI;
-
-	for (long i = 0; i < num_samples; i++) {
-		// calculate the sine wave value between -1.0 and 1.0
-		const double t = (double)i / SAMPLE_RATE;
-		double amplitude = volume;
-
-		// gradually increase amplitude at start
-		if (t < GAIN_TIME_SECS) {
-			amplitude *= (double)t / GAIN_TIME_SECS;
-		}
-		// gradually decrease amplitude at end
-		else if ((duration_seconds - t) < GAIN_TIME_SECS) {
-			amplitude *= (double)(duration_seconds - t) / GAIN_TIME_SECS;
-		}
-		const double sample_value = amplitude * sin(two_pi * FREQUENCY * t);
-
-		// scale to 16-bit signed integer PCM (-32768 to 32767)
-		const int16_t pcm_sample = (int16_t)(sample_value * AMPLITUDE);
-
-		// write the 16-bit sample (2 bytes) in little-endian format
-		const uint8_t right_byte = pcm_sample & 0xFF;
-		const uint8_t left_byte = (pcm_sample >> 8) & 0xFF;
-		fputc(right_byte, subprocess_stdin);
-		fputc(left_byte, subprocess_stdin);
-	}
-}
-void queueSound(const double duration_seconds) {
-	queueAudio(duration_seconds, NORMAL_VOLUME);
-}
-void queueQuiet(const double duration_seconds) {
-	queueAudio(duration_seconds, 0);
-}
-// must queue audio first to be played
-void playSound(void) {
-	// explicitly flush the stream to force data through the pipe immediately
-	fflush(subprocess_stdin);
 }
 void sleep_double(const double duration_seconds) {
 	const int duration_microseconds = (int)(duration_seconds*1000000);

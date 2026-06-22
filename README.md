@@ -18,7 +18,7 @@ Use linux audio program 'aplay' as subprocess and pipe in audio bytes,
 opens and closes aplay when sound is needed to keep things simple.
 
 COMPILE
-`clang -Wall -Wextra -Werror main.c -o morser -lm`
+`clang -Wall -Wextra -Werror main.c audio_handler.c -o morser -lm`
 
 RUN
 `./morser`
