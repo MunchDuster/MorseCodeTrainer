@@ -1,0 +1,1 @@
+char* get_morse(const char letter);

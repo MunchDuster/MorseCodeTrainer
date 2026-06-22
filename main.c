@@ -8,6 +8,7 @@
 #include <time.h>   	// time()
 
 #include "audio_handler.h"
+#include "morse_data.h"
 
 // morse code timings following international standard
 #define WORDS_PER_SECOND 20.0		// TODO: make settable as parameter for better practice of fast speeds
@@ -26,64 +27,6 @@
 // learning consts
 #define CONSECUTIVE_CORRECT_THRESHOLD 5 // TODO: make settable as parameter for user preference
 
-// input index is the character and output string of dits and dahs
-// not the most memory efficient but easy to encode correctly and fairly simple to decode
-const char*const letters_morse[256] = {
-	['a']  = ".-",
-	['b']  = "-...",
-	['c']  = "-.-.",
-	['d']  = "-..",
-	['e']  = ".",
-	['f']  = "..-.",
-	['g']  = "--.",
-	['h']  = "....",
-	['i']  = "..",
-	['j']  = ".---",
-	['k']  = "-.-",
-	['l']  = ".-..",
-	['m']  = "--",
-	['n']  = "-.",
-	['o']  = "---",
-	['p']  = ".--.",
-	['q']  = "--.-",
-	['r']  = ".-.",
-	['s']  = "...",
-	['t']  = "-",
-	['u']  = "..-",
-	['v']  = "...-",
-	['w']  = ".--",
-	['x']  = "-..-",
-	['y']  = "-.--",
-	['z']  = "--..",
-
-	['0']  = "-----",
-	['1']  = ".----",
-	['2']  = "..---",
-	['3']  = "...--",
-	['4']  = "....-",
-	['5']  = ".....",
-	['6']  = "-....",
-	['7']  = "--...",
-	['8']  = "---..",
-	['9']  = "----.",
-
-	['&']  = ".-...",
-	['\''] = ".----.",
-	['@']  = ".--.-.",
-	[')']  = "-.--.-",
-	['(']  = "-.--.",
-	[':']  = "---...",
-	[',']  = "--..--",
-	['=']  = "-...-",
-	['!']  = "-.-.--",
-	['.']  = ".-.-.-",
-	['-']  = "-....-",
-	['%']  = "-----",
-	['+']  = ".-.-.",
-	['"']  = ".-..-.",
-	['?']  = "..--..",
-	['/']  = "-..-.",
-};
 struct lesson_contents {
 	const int text_count;
 	const char**const texts;
@@ -197,7 +140,7 @@ int send_message(const char*const message) {
 	for (int i = 0; message[i] != '\0'; i++) {
 		// TODO: handle spaces for multiple words to have correct timing
 		const char letter = message[i];
-		const char*const morse = letters_morse[(int)letter];
+		const char*const morse = get_morse(letter);
 		if (morse == NULL) {
 			perror("morse for letter '");
 			perror(&letter);
