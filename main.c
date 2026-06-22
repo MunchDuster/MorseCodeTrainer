@@ -10,14 +10,14 @@
 #include "audio_handler.h"
 #include "morse_data.h"
 #include "lessons.h"
+#include "console_interface.h"
+#include "math.h"
 
 // morse code timings following international standard
 #define WORDS_PER_SECOND 20.0		// TODO: make settable as parameter for better practice of fast speeds
 #define DIT_DURATION_SECS (1.2 / WORDS_PER_SECOND)
 #define DAH_DURATIONS_SECS (DIT_DURATION_SECS * 3.0)
 #define BIT_INTERVAL_DURATION_SECS (DIT_DURATION_SECS)
-
-#define COUNTS_DISPLAY_ROWS 10		// prevent list too long, TODO: make param
 
 // TODO: word letter interval, word interval
 // TODO: limit amount of texts practicing (longer word lists get quite long but varied pratice is good)
@@ -28,10 +28,6 @@
 // learning consts
 #define CONSECUTIVE_CORRECT_THRESHOLD 5 // TODO: make settable as parameter for user preference
 
-int min(const int a, const int b) {
-	if (a > b) return b;
-	return a;
-}
 void sleep_double(const double duration_seconds) {
 	const int duration_microseconds = (int)(duration_seconds*1000000);
 	usleep(duration_microseconds);
@@ -81,25 +77,10 @@ int send_message(const char*const message) {
 	}
 	return EXIT_SUCCESS;
 }
-void press_to_continue(void) {
-	printf("[press enter to continue]");
-    getchar(); 
-}
-void print_counts(const int length, const char*const*const texts, const uint8_t*const counts) {
-	printf("Current scores\n");
-	for (int i = 0; i < min(length, COUNTS_DISPLAY_ROWS); i++) {
-		for (int c = i; c < length; c += COUNTS_DISPLAY_ROWS) {
-			printf("%s\t%d\t", texts[c], counts[c]);
-		}
-		printf("\n");
-	}
-}
+
 // random number from 0 to maxExclusive - 1
 int random_range(const int maxExclusive) {
 	return (rand() % maxExclusive);
-}
-void clear_console(void) {
-	printf("\e[2J\e[H\n"); // clears and resets cursor position
 }
 
 int learnText(const char**const texts, const int texts_length) {
@@ -192,14 +173,7 @@ int learnText(const char**const texts, const int texts_length) {
 	clear_console();
 	return EXIT_SUCCESS;
 }
-bool press_to_continue_or_skip(void) {
-	printf("[press enter to continue or space to skip]");
-	if (getchar() == ' ') {
-		while (getchar() != '\n') ; // read all other chars
-		return true;
-	}
-	return false;
-}
+
 int main(void) {
 	srand(time(NULL)); // seed random number with curtime
 	bool skip;
